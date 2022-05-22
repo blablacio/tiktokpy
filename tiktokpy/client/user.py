@@ -194,19 +194,6 @@ class User:
         page: Page = await self.client.new_page(blocked_resources=["image", "media", "font"])
         logger.debug(f"📨 Request {username} feed")
 
-        _ = await self.client.goto(
-            f"/search/user?q={username.lstrip('@')}",
-            page=page,
-            wait_until="networkidle",
-        )
-        username_selector = SEARCH_USERNAME.format(username)
-
-        is_found_user = await page.query_selector(username_selector)
-
-        if not is_found_user:
-            logger.error(f'❗️ User "{username}" not found')
-            return []
-
         result: List[dict] = []
 
         page.on(
@@ -214,13 +201,7 @@ class User:
             lambda res: asyncio.create_task(catch_response_and_store(res, result)),
         )
 
-        try:
-            await page.click(username_selector)
-            await page.wait_for_selector(MAIN_WRAPPER)
-            await page.wait_for_load_state(state="networkidle")
-        except TimeoutError:
-            logger.error(f'❗️ Unexpected error. Timeout on searching user "{username}"...')
-            return []
+        _ = await self.client.goto(f"/{username}", page=page, wait_until="networkidle")
 
         logger.debug(f"📭 Got {username} feed")
 
@@ -274,6 +255,7 @@ class User:
             await page.wait_for_timeout(1_000)
 
             elements = await page.query_selector_all(USER_FEED_ITEM)
+            print(elements)
             logger.debug(f"🔎 Found {len(elements)} items on page by selector {USER_FEED_ITEM}")
 
             pbar.n = min(result_unique_amount(), amount)
